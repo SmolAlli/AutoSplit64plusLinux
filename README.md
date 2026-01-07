@@ -5,6 +5,9 @@
 
 # A fork of Autosplit64Plus
 Run ./run.sh to open Autosplit64Plus
+# Requirements
+Python 3.11
+libobs-dev (for the obs plugin)
 
 ## Currently the only capture method that works is through the obs plugin
 Find the obs plugin in /obs-plugin/build
