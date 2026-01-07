@@ -4,12 +4,27 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 # Check if python 3.11 is available
-if command -v python3.11 &> /dev/null; then
-    PYTHON_CMD="python3.11"
-else
-    # Fallback to python3, but warn
-    PYTHON_CMD="python3"
-    echo "Warning: Python 3.11 not explicitly found, trying $PYTHON_CMD"
+PYTHON_CMD=""
+
+# Try to detect pyenv and configure it for this session
+if command -v pyenv &> /dev/null; then
+  # Find installed 3.11 version
+  PY_VER=$(pyenv versions --bare | grep "^3\.11" | head -n 1)
+  if [ -n "$PY_VER" ]; then
+    export PYENV_VERSION="$PY_VER"
+    echo "Using pyenv python version: $PY_VER"
+    PYTHON_CMD="python"
+  fi
+fi
+
+if [ -z "$PYTHON_CMD" ]; then
+    if command -v python3.11 &> /dev/null; then
+        PYTHON_CMD="python3.11"
+    else
+        # Fallback to python3, but warn
+        PYTHON_CMD="python3"
+        echo "Warning: Python 3.11 not explicitly found, trying $PYTHON_CMD"
+    fi
 fi
 
 # Check for virtual environment
