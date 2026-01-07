@@ -3,7 +3,7 @@
     <img alt="AS64+" title="AS64+" src="resources\gui\icons\as64plus.png" width="256">
 </p>
 
-# A fork of Autosplit64Plus
+# A badly coded linux fork of Autosplit64Plus
 Run ./run.sh to open Autosplit64Plus
 # Requirements
 Python 3.11 
@@ -19,3 +19,5 @@ mkdir build && cd ./build
 cmake ..
 make
 
+## I do not expect this to work flawlessly (or at all for others)
+I do not have experience doing this sort of work so its mostly held together with glue and tape (and lots of ai)
