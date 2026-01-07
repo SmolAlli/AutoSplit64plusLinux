@@ -1,5 +1,6 @@
 import json
 import copy
+import sys
 
 
 _config = {}
@@ -126,6 +127,11 @@ def load_defaults():
     with open(_DEFAULTS_FILE_NAME) as file:
         data = json.load(file)
         _defaults = data
+        
+        # On Linux, default to TCP connection for LiveSplit
+        if sys.platform != 'win32':
+            if 'connection' in _defaults:
+                _defaults['connection']['ls_connection_type'] = 1
 
 
 def save_config():

@@ -7,6 +7,12 @@
 #include <obs-module.h>
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 #endif
 #include "constants.h"
 
@@ -22,11 +28,16 @@ struct filter_data {
 	uint32_t width;          // Current frame width
 	uint32_t height;         // Current frame height
 	uint8_t *image_data;     // Buffer for BGR pixel data
-	HANDLE shmem;            // Windows shared memory handle
-	LPCTSTR pBuf;            // Pointer to the mapped view of the shared memory
-	uint32_t frame_counter;  // Frame counter for synchronization
-	bool shmem_valid;        // Track if shared memory is valid
-	bool is_valid;           // Track if this is a valid instance
+#ifdef _WIN32
+	HANDLE shmem; // Windows shared memory handle
+	LPCTSTR pBuf; // Pointer to the mapped view of the shared memory
+#else
+	int shmem_fd; // Linux shared memory file descriptor
+	void *pBuf;   // Pointer to the mapped view of the shared memory
+#endif
+	uint32_t frame_counter; // Frame counter for synchronization
+	bool shmem_valid;       // Track if shared memory is valid
+	bool is_valid;          // Track if this is a valid instance
 };
 
 static bool filter_instance_exists = false;
@@ -61,7 +72,7 @@ static void *filter_create(obs_data_t *settings, obs_source_t *source)
 
 	filter->context = source;
 	filter->is_valid = !filter_instance_exists;
-	
+
 	if (!filter->is_valid) {
 		blog(LOG_WARNING, "AS64+ Frame grabber: Only one instance allowed");
 		return filter; // Return filter anyway so properties can show error
@@ -89,13 +100,21 @@ static void *filter_create(obs_data_t *settings, obs_source_t *source)
  */
 static bool github_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
 {
+#ifdef _WIN32
 	system("start " GITHUB_URL);
+#else
+	system("xdg-open " GITHUB_URL);
+#endif
 	return false;
 }
 
 static bool discord_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
 {
+#ifdef _WIN32
 	system("start " DISCORD_URL);
+#else
+	system("xdg-open " DISCORD_URL);
+#endif
 	return false;
 }
 
@@ -105,11 +124,8 @@ static obs_properties_t *filter_properties(void *data)
 	obs_properties_t *props = obs_properties_create();
 
 	if (!filter || !filter->is_valid) {
-		obs_properties_add_text(
-			props,
-			"error_message",
-			"❌ Error: Only one AS64+ Frame Grabber instance allowed",
-			OBS_TEXT_INFO);
+		obs_properties_add_text(props, "error_message",
+					"❌ Error: Only one AS64+ Frame Grabber instance allowed", OBS_TEXT_INFO);
 		return props;
 	}
 
@@ -142,10 +158,12 @@ static obs_properties_t *filter_properties(void *data)
  */
 static bool open_shmem(struct filter_data *filter, uint32_t width, uint32_t height)
 {
-	if (filter->shmem && filter->shmem_valid) {
+	if (filter->shmem_valid) {
 		// Already open, no need to recreate
 		return true;
 	}
+
+#ifdef _WIN32
 	filter->shmem = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, 16 + width * height * 4,
 					  TEXT("as64_grabber"));
 	if (filter->shmem) {
@@ -160,9 +178,41 @@ static bool open_shmem(struct filter_data *filter, uint32_t width, uint32_t heig
 			filter->shmem = NULL;
 		}
 	} else {
-		blog(LOG_ERROR, "Failed to create shared memory");
+		blog(LOG_ERROR, "Failed to create shared memory: %lu", GetLastError());
 	}
 	return false;
+#else
+	char name[64];
+	snprintf(name, sizeof(name), "/%s", "as64_grabber");
+
+	size_t size = 16 + width * height * 4;
+
+	filter->shmem_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+	if (filter->shmem_fd == -1) {
+		blog(LOG_ERROR, "Failed to create shared memory: %s", strerror(errno));
+		return false;
+	}
+
+	if (ftruncate(filter->shmem_fd, size) == -1) {
+		blog(LOG_ERROR, "Failed to resize shared memory: %s", strerror(errno));
+		close(filter->shmem_fd);
+		filter->shmem_fd = -1;
+		return false;
+	}
+
+	filter->pBuf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, filter->shmem_fd, 0);
+	if (filter->pBuf == MAP_FAILED) {
+		blog(LOG_ERROR, "Failed to map shared memory: %s", strerror(errno));
+		close(filter->shmem_fd);
+		filter->shmem_fd = -1;
+		filter->pBuf = NULL;
+		return false;
+	}
+
+	filter->shmem_valid = true;
+	blog(LOG_INFO, "Opened shared memory connection");
+	return true;
+#endif
 }
 
 static bool close_shmem(struct filter_data *filter)
@@ -175,11 +225,17 @@ static bool close_shmem(struct filter_data *filter)
 		header[2] = -1;
 		header[3] = 0;
 
+#ifdef _WIN32
 		FlushViewOfFile(filter->pBuf, 16);
 		UnmapViewOfFile(filter->pBuf);
+#else
+		size_t size = 16 + filter->width * filter->height * 4;
+		munmap(filter->pBuf, size);
+#endif
 		filter->pBuf = NULL;
 	}
 
+#ifdef _WIN32
 	if (filter->shmem) {
 		if (CloseHandle(filter->shmem)) {
 			blog(LOG_INFO, "Closed the shared memory");
@@ -188,6 +244,16 @@ static bool close_shmem(struct filter_data *filter)
 		}
 		filter->shmem = NULL;
 	}
+#else
+	if (filter->shmem_fd != -1) {
+		close(filter->shmem_fd);
+		filter->shmem_fd = -1;
+		// We do not unlink here to allow ensuring other processes can still see it if needed,
+		// but typically we might want to unlink?
+		// For now, mirroring Windows behavior of just closing handle.
+		blog(LOG_INFO, "Closed the shared memory");
+	}
+#endif
 	filter->shmem_valid = false;
 	return true;
 }
@@ -288,13 +354,16 @@ static void filter_render(void *data, gs_effect_t *effect)
 	gs_texrender_reset(filter->render);
 
 	if (gs_texrender_begin(filter->render, width, height)) {
-		if (!effect)
-			effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+		struct vec4 clear_color;
+		vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 0.0f);
+		gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
 
 		gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f, 100.0f);
 		gs_blend_state_push();
 		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+
 		obs_source_video_render(target);
+
 		gs_blend_state_pop();
 		gs_texrender_end(filter->render);
 
@@ -302,23 +371,25 @@ static void filter_render(void *data, gs_effect_t *effect)
 		uint8_t *data;
 		uint32_t linesize;
 		if (gs_stagesurface_map(filter->staging, &data, &linesize)) {
+			// Copy data...
 			for (uint32_t row = 0; row < height; row++) {
 				memcpy(filter->image_data + (row * width * 4), data + (row * linesize), width * 4);
 			}
 			gs_stagesurface_unmap(filter->staging);
+		} else {
+			// blog(LOG_WARNING, "Failed to map staging surface");
 		}
 
 		copy_to_shared_memory(filter, width, height);
+	} else {
+		blog(LOG_ERROR, "Failed to begin texture render");
 	}
 
-	if (!effect)
-		effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-
-	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
-	if (image) {
-		gs_effect_set_texture(image, gs_texrender_get_texture(filter->render));
-		while (gs_effect_loop(effect, "Draw"))
-			gs_draw_sprite(gs_texrender_get_texture(filter->render), 0, width, height);
+	gs_texture_t *tex = gs_texrender_get_texture(filter->render);
+	if (tex) {
+		gs_draw_sprite(tex, 0, width, height);
+	} else {
+		blog(LOG_ERROR, "Failed to get texture from render target");
 	}
 }
 

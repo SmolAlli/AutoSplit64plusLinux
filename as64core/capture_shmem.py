@@ -2,10 +2,13 @@ import mmap
 import ctypes
 import numpy as np
 import time
+import sys
+import os
 
 # Constants
-FILE_MAP_READ = 0x0004
-PAGE_READWRITE = 0x04
+if sys.platform == 'win32':
+    FILE_MAP_READ = 0x0004
+    PAGE_READWRITE = 0x04
 SHMEM_NAME = "as64_grabber"
 
 class SharedMemoryCapture(object):
@@ -19,16 +22,39 @@ class SharedMemoryCapture(object):
 
     def open_shmem(self):
         # Check if shared memory is already open
-        if self.shmem_handle:
+        if self.shmem:
             return True
+            
         """Open the shared memory connection"""
-        self.shmem_handle = ctypes.windll.kernel32.OpenFileMappingW(FILE_MAP_READ, False, SHMEM_NAME)
-        if not self.shmem_handle:
-            raise Exception("Could not find OBS Grabber Plugin!\n\nPlease make sure the plugin is enabled and OBS is running.")
-        
-        # Read initial header to set up first mapping
-        self._update_dimensions()
-        self.shmem = mmap.mmap(-1, self.shmem_size, tagname=SHMEM_NAME, access=mmap.ACCESS_READ)
+        if sys.platform == 'win32':
+            self.shmem_handle = ctypes.windll.kernel32.OpenFileMappingW(FILE_MAP_READ, False, SHMEM_NAME)
+            if not self.shmem_handle:
+                raise Exception("Could not find OBS Grabber Plugin!\n\nPlease make sure the plugin is enabled and OBS is running.")
+            
+            # Read initial header to set up first mapping
+            self._update_dimensions()
+            self.shmem = mmap.mmap(-1, self.shmem_size, tagname=SHMEM_NAME, access=mmap.ACCESS_READ)
+        else:
+            # Linux implementation
+            shm_path = f"/dev/shm/{SHMEM_NAME}"
+            if not os.path.exists(shm_path):
+                 debug_info = f"Path checked: {shm_path}\n"
+                 if os.path.exists("/dev/shm"):
+                     debug_info += f"Contents of /dev/shm: {os.listdir('/dev/shm')}"
+                 else:
+                     debug_info += "/dev/shm directory does not exist!"
+                 
+                 raise Exception(f"Could not find OBS Grabber Plugin!\n\n{debug_info}\n\nPlease make sure the plugin is enabled and OBS is running.")
+
+            # We need to open the file to get a file descriptor
+            self.shmem_fd = open(shm_path, "r+b")
+            
+            # Read initial header
+            self._update_dimensions()
+            
+            # Map the file
+            self.shmem = mmap.mmap(self.shmem_fd.fileno(), self.shmem_size, access=mmap.ACCESS_READ)
+            
         print("Shared memory opened")
         return True
 
@@ -41,25 +67,53 @@ class SharedMemoryCapture(object):
         except ValueError:
             # Handle case where memory is already closed
             self.shmem = None
-        if self.shmem_handle:
-            ctypes.windll.kernel32.CloseHandle(self.shmem_handle)
-            self.shmem_handle = None
-            print("Shared memory closed")
+            
+        if sys.platform == 'win32':
+            if self.shmem_handle:
+                ctypes.windll.kernel32.CloseHandle(self.shmem_handle)
+                self.shmem_handle = None
+        else:
+            if hasattr(self, 'shmem_fd') and self.shmem_fd:
+                self.shmem_fd.close()
+                self.shmem_fd = None
+                
+        print("Shared memory closed")
 
     def _update_dimensions(self):
         """Read header and update dimensions"""
         
-        # Check if shared memory is open of not, open it
-        if not self.shmem_handle:
-            self.open_shmem()
-        shmem_header = mmap.mmap(-1, 16, tagname=SHMEM_NAME)
-        shmem_header.seek(0)
-        header = np.frombuffer(shmem_header.read(16), dtype=np.uint32)
-        shmem_header.close()
+        if sys.platform == 'win32':
+            # Check if shared memory is open of not, open it
+            if not self.shmem_handle:
+                self.open_shmem()
+            shmem_header = mmap.mmap(-1, 16, tagname=SHMEM_NAME)
+            shmem_header.seek(0)
+            header = np.frombuffer(shmem_header.read(16), dtype=np.uint32)
+            shmem_header.close()
+        else:
+             if not hasattr(self, 'shmem_fd') or not self.shmem_fd:
+                 # Try to open if we have the file
+                 if os.path.exists(f"/dev/shm/{SHMEM_NAME}"):
+                     self.open_shmem()
+                 else:
+                     return # Can't update dimensions if not open/exists
+             
+             # Map header using the file descriptor
+             # We use the existing FD. 
+             try:
+                 shmem_header = mmap.mmap(self.shmem_fd.fileno(), 16, access=mmap.ACCESS_READ)
+                 shmem_header.seek(0)
+                 header = np.frombuffer(shmem_header.read(16), dtype=np.uint32)
+                 shmem_header.close()
+             except Exception as e:
+                 print(f"Error reading shmem header: {e}")
+                 return
 
-        new_width = header[0]
-        new_height = header[1]
-        new_linesize = header[2]
+        new_width = int(header[0])
+        new_height = int(header[1])
+        new_linesize = int(header[2])
+        
+        # print(f"DEBUG: Read header - W:{new_width} H:{new_height} Size:{new_linesize}")
 
         if (new_width != self.width or 
             new_height != self.height or 
@@ -72,7 +126,10 @@ class SharedMemoryCapture(object):
 
             if self.shmem:
                 self.shmem.close()
-                self.shmem = mmap.mmap(-1, self.shmem_size, tagname=SHMEM_NAME, access=mmap.ACCESS_READ)
+                if sys.platform == 'win32':
+                    self.shmem = mmap.mmap(-1, self.shmem_size, tagname=SHMEM_NAME, access=mmap.ACCESS_READ)
+                else:
+                    self.shmem = mmap.mmap(self.shmem_fd.fileno(), self.shmem_size, access=mmap.ACCESS_READ)
 
     def get_capture_size(self):
         """Get the current capture dimensions"""
@@ -94,6 +151,7 @@ class SharedMemoryCapture(object):
             raise Exception("OBS closed the connection")
         
         if self.width <= 0 or self.height <= 0 or self.shmem_size <= 16:
+            # print(f"DEBUG: Invalid dimensions: W:{self.width} H:{self.height} Size:{self.shmem_size}")
             raise Exception("Invalid dimensions or shared memory size")
 
         try:

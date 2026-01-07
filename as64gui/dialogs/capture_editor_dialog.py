@@ -228,7 +228,8 @@ class CaptureEditor(QtWidgets.QDialog):
             try:
                 preview_image = self.shmem_capture.capture()
                 cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), preview_image)
-            except:
+            except Exception as e:
+                print(f"Refresh capture failed: {e}")
                 # If capture fails, display a placeholder image
                 cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), cv2.imread(resource_utils.resource_path(PLACEHOLDER_PATH)))                
                 
@@ -304,11 +305,13 @@ class CaptureEditor(QtWidgets.QDialog):
 
     def auto_detect_region(self):
         try:
+            preview_image = None
             # Check capture method
             if self.use_obs_cb.isChecked():
                 try:
                     preview_image = self.shmem_capture.capture()
-                except:
+                except Exception as e:
+                    print(f"Capture failed: {e}")
                     pass
             else:
                 selected_hwnd = 0

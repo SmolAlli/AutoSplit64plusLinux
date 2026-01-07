@@ -1,7 +1,11 @@
 import socket
 import select
-import win32file
-import win32pipe
+try:
+    import win32file
+    import win32pipe
+except ImportError:
+    win32file = None
+    win32pipe = None
 import time
 
 from . import config
@@ -13,6 +17,9 @@ def connect() -> object:
 
     # Check if connection type is named pipe (0 indicates named pipe)
     if ls_connection_type == 0:
+        if win32file is None:
+            return False
+            
         # Get named pipe host from config. Name is always LiveSplit
         ls_pipe_path = "\\\\" + config.get("connection", "ls_pipe_host") + "\\pipe\\LiveSplit"
         try:
@@ -63,6 +70,9 @@ def send(ls_socket, command) -> None:
         ls_socket.send(command.encode('utf-8'))
     # If it is a pipe:
     else:
+        if win32file is None:
+            return
+
         # Send the command to the pipe
         try:
             win32file.WriteFile(ls_socket, command.encode('utf-8'))
@@ -112,6 +122,9 @@ def split_index(ls_socket):
             return False
     # If it is a pipe:
     else:
+        if win32file is None or win32pipe is None:
+            return False
+
         # Send the command to the pipe
         try:
             win32file.WriteFile(ls_socket, "getsplitindex\r\n".encode('utf-8'))

@@ -1,9 +1,18 @@
-from ctypes import windll
-import win32gui
-import win32ui
-import win32process
-import numpy as np
+import sys
 import psutil
+import numpy as np
+
+if sys.platform == 'win32':
+    from ctypes import windll
+    import win32gui
+    import win32ui
+    import win32process
+else:
+    windll = None
+    win32gui = None
+    win32ui = None
+    win32process = None
+
 
 EXCLUSION_LIST = ["ApplicationFrameHost.exe",
                   "WinRAR.exe",
@@ -25,6 +34,10 @@ EXCLUSION_LIST = ["ApplicationFrameHost.exe",
 def get_visible_processes():
     """ Returns a list of processes with a valid hwnd """
     processes = []
+    
+    if sys.platform != 'win32':
+        return []
+
     for proc in psutil.process_iter():
         hwnd = 0
         try:
@@ -68,6 +81,9 @@ def capture(hwnd, client_area=True):
     https://stackoverflow.com/a/24352388
     Modified to support client area capture
     """
+    if sys.platform != 'win32':
+        raise NotImplementedError("Window capture is only supported on Windows")
+
     try:
         if client_area:
             # Get client area dimensions

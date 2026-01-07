@@ -19,6 +19,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
 if(ENABLE_FRONTEND_API)
   find_package(obs-frontend-api REQUIRED)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
+  find_package(obs-frontend-api REQUIRED)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
+endif()
+
+if(UNIX AND NOT APPLE)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE rt)
 endif()
 
 if(ENABLE_QT)
