@@ -98,25 +98,25 @@ static void *filter_create(obs_data_t *settings, obs_source_t *source)
  * @param data Pointer to the filter data
  * @return Pointer to the created properties
  */
-static bool github_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
-{
-#ifdef _WIN32
-	system("start " GITHUB_URL);
-#else
-	system("xdg-open " GITHUB_URL);
-#endif
-	return false;
-}
+// static bool github_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
+// {
+// #ifdef _WIN32
+// 	system("start " GITHUB_URL);
+// #else
+// 	system("xdg-open " GITHUB_URL);
+// #endif
+// 	return false;
+// }
 
-static bool discord_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
-{
-#ifdef _WIN32
-	system("start " DISCORD_URL);
-#else
-	system("xdg-open " DISCORD_URL);
-#endif
-	return false;
-}
+// static bool discord_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
+// {
+// #ifdef _WIN32
+// 	system("start " DISCORD_URL);
+// #else
+// 	system("xdg-open " DISCORD_URL);
+// #endif
+// 	return false;
+// }
 
 static obs_properties_t *filter_properties(void *data)
 {
@@ -138,8 +138,8 @@ static obs_properties_t *filter_properties(void *data)
 				OBS_TEXT_INFO);
 
 	// Social links - directly in props instead of a group for horizontal layout
-	obs_properties_add_button(props, "github_link", "📂 GitHub Repository", github_button_clicked);
-	obs_properties_add_button(props, "discord_link", "💬 Join Discord", discord_button_clicked);
+	// obs_properties_add_button(props, "github_link", "📂 GitHub Repository", github_button_clicked);
+	// obs_properties_add_button(props, "discord_link", "💬 Join Discord", discord_button_clicked);
 
 	// Version and author info - directly use the constants
 	obs_properties_add_text(props, "version", PLUGIN_VERSION, OBS_TEXT_INFO);

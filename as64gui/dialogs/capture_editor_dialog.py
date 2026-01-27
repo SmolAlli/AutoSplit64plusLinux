@@ -40,9 +40,9 @@ class CaptureEditor(QtWidgets.QDialog):
         self.cancel_btn = QtWidgets.QPushButton("Cancel")
 
         # Left Panel Widgets
-        self.use_obs_cb = QtWidgets.QCheckBox("Use OBS Plugin")
-        self.process_lb = QtWidgets.QLabel("Process:")
-        self.process_combo = QtWidgets.QComboBox()
+        # self.use_obs_cb = QtWidgets.QCheckBox("Use OBS Plugin")
+        # self.process_lb = QtWidgets.QLabel("Process:")
+        # self.process_combo = QtWidgets.QComboBox()
         self.capture_btn = QtWidgets.QPushButton("Capture Screen")
         self.auto_region_btn = QtWidgets.QPushButton("Auto Detect Region")
         self.vc_fix_cb = QtWidgets.QCheckBox("VC fix (experimental)")
@@ -81,13 +81,13 @@ class CaptureEditor(QtWidgets.QDialog):
         self.capture_btn.setAutoDefault(False)
         self.auto_region_btn.setDefault(False)
         self.auto_region_btn.setAutoDefault(False)
-        self.process_combo.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Minimum)
+        # self.process_combo.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        self._refresh_process_list()
+        # self._refresh_process_list()
 
-        self.left_layout.addWidget(self.use_obs_cb, 0, 0, 1, 2)
-        self.left_layout.addWidget(self.process_lb, 1, 0)
-        self.left_layout.addWidget(self.process_combo, 1, 1)
+        # self.left_layout.addWidget(self.use_obs_cb, 0, 0, 1, 2)
+        # self.left_layout.addWidget(self.process_lb, 1, 0)
+        # self.left_layout.addWidget(self.process_combo, 1, 1)
         self.left_layout.addWidget(self.capture_btn, 2, 0, 1, 2)
         self.left_layout.addWidget(self.auto_region_btn, 3, 0, 1, 2)
         self.left_layout.addWidget(self.vc_fix_cb, 4, 0, 1, 2)
@@ -95,7 +95,7 @@ class CaptureEditor(QtWidgets.QDialog):
         self.left_layout.addItem(QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Expanding), 5, 0)
 
         # Add connection for checkbox
-        self.use_obs_cb.stateChanged.connect(self.toggle_capture_method)
+        # self.use_obs_cb.stateChanged.connect(self.toggle_capture_method)
 
         # Right Widget
         self.apply_btn.setDefault(False)
@@ -118,23 +118,23 @@ class CaptureEditor(QtWidgets.QDialog):
         self.apply_btn.clicked.connect(self.apply_clicked)
         self.cancel_btn.clicked.connect(self.cancel_clicked)
         self.game_region_panel.updated.connect(self.on_game_region_panel_update)
-        self.process_combo.currentIndexChanged.connect(self.refresh_graphics_scene)
+        # self.process_combo.currentIndexChanged.connect(self.refresh_graphics_scene)
         self.auto_region_btn.clicked.connect(self.auto_detect_region)
 
         self.refresh_graphics_scene()
 
-    def toggle_capture_method(self, state):
-        use_obs = bool(state)
-        self.process_lb.setVisible(not use_obs)
-        self.process_combo.setVisible(not use_obs)
+    # def toggle_capture_method(self, state):
+    #     use_obs = bool(state)
+    #     self.process_lb.setVisible(not use_obs)
+    #     self.process_combo.setVisible(not use_obs)
 
-        # Refresh the view with new capture method
-        self.refresh_graphics_scene()
+    #     # Refresh the view with new capture method
+    #     self.refresh_graphics_scene()
 
-    def _refresh_process_list(self):
-        self.process_combo.clear()
-        self._process_list = capture_window.get_visible_processes()
-        self.process_combo.addItems([proc[0].name() for proc in self._process_list])
+    # def _refresh_process_list(self):
+    #     self.process_combo.clear()
+    #     self._process_list = capture_window.get_visible_processes()
+    #     self.process_combo.addItems([proc[0].name() for proc in self._process_list])
 
     def show(self):
         # Load game_region from preferences
@@ -144,18 +144,18 @@ class CaptureEditor(QtWidgets.QDialog):
 
         self.game_region_panel.update_text(*[str(v) for v in game_region])
 
-        self._refresh_process_list()
+        # self._refresh_process_list()
 
-        p_name = config.get("game", "process_name")
+        # p_name = config.get("game", "process_name")
 
-        for i in range(len(self._process_list)):
-            if self._process_list[i][0].name() == p_name:
-                self.process_combo.setCurrentIndex(i)
+        # for i in range(len(self._process_list)):
+        #     if self._process_list[i][0].name() == p_name:
+        #         self.process_combo.setCurrentIndex(i)
 
         # Load use_obs preference
-        use_obs = config.get("game", "use_obs")
-        self.use_obs_cb.setChecked(use_obs)
-        self.toggle_capture_method(use_obs)
+        # use_obs = config.get("game", "use_obs")
+        # self.use_obs_cb.setChecked(use_obs)
+        # self.toggle_capture_method(use_obs)
         
         vc_fix = config.get("game", "vc_fix")
         self.vc_fix_cb.setChecked(vc_fix)
@@ -175,16 +175,16 @@ class CaptureEditor(QtWidgets.QDialog):
         #         return
 
         # Config
-        config.set_key("game", "use_obs", self.use_obs_cb.isChecked())
+        # config.set_key("game", "use_obs", self.use_obs_cb.isChecked())
         config.set_key("game", "game_region", self.game_region_panel.get_data())
-        if not self.use_obs_cb.isChecked():
-            config.set_key("game", "process_name", self.process_combo.currentText())
+        # if not self.use_obs_cb.isChecked():
+        #     config.set_key("game", "process_name", self.process_combo.currentText())
 
         try:
-            if self.use_obs_cb.isChecked():
-                config.set_key("game", "capture_size", self.shmem_capture.get_capture_size())
-            else:
-                config.set_key("game", "capture_size", capture_window.get_capture_size(self._process_list[self.process_combo.currentIndex()][1]))
+            # if self.use_obs_cb.isChecked():
+            config.set_key("game", "capture_size", self.shmem_capture.get_capture_size())
+            # else:
+            #     config.set_key("game", "capture_size", capture_window.get_capture_size(self._process_list[self.process_combo.currentIndex()][1]))
         except:
             pass
         
@@ -224,31 +224,31 @@ class CaptureEditor(QtWidgets.QDialog):
         self.graphics_view.update()
         
         # Check capture method
-        if self.use_obs_cb.isChecked():
-            try:
-                preview_image = self.shmem_capture.capture()
-                cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), preview_image)
-            except Exception as e:
-                print(f"Refresh capture failed: {e}")
-                # If capture fails, display a placeholder image
-                cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), cv2.imread(resource_utils.resource_path(PLACEHOLDER_PATH)))                
-                
-                pass
-        else:
-            # Update screen capture
-            selected_hwnd = 0
+        # if self.use_obs_cb.isChecked():
+        try:
+            preview_image = self.shmem_capture.capture()
+            cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), preview_image)
+        except Exception as e:
+            print(f"Refresh capture failed: {e}")
+            # If capture fails, display a placeholder image
+            cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), cv2.imread(resource_utils.resource_path(PLACEHOLDER_PATH)))                
+            
+            pass
+        # else:
+        #     # Update screen capture
+        #     selected_hwnd = 0
 
-            try:
-                selected_hwnd = self._process_list[self.process_combo.currentIndex()][1]
-            except IndexError:
-                pass
+        #     try:
+        #         selected_hwnd = self._process_list[self.process_combo.currentIndex()][1]
+        #     except IndexError:
+        #         pass
         
-            if selected_hwnd:
-                try:
-                    preview_image = capture_window.capture(selected_hwnd)
-                    cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), preview_image)
-                except:
-                    pass
+        #     if selected_hwnd:
+        #         try:
+        #             preview_image = capture_window.capture(selected_hwnd)
+        #             cv2.imwrite(resource_utils.resource_path(PREVIEW_PATH), preview_image)
+        #         except:
+        #             pass
             
         self.preview_pixmap.load(resource_utils.resource_path(PREVIEW_PATH))
 
@@ -307,45 +307,45 @@ class CaptureEditor(QtWidgets.QDialog):
         try:
             preview_image = None
             # Check capture method
-            if self.use_obs_cb.isChecked():
-                try:
-                    preview_image = self.shmem_capture.capture()
-                except Exception as e:
-                    print(f"Capture failed: {e}")
-                    pass
-            else:
-                selected_hwnd = 0
-                try:
-                    selected_hwnd = self._process_list[self.process_combo.currentIndex()][1]
-                    # Check if the selected process is Amarec
-                except IndexError:
-                    pass
-                if selected_hwnd:
-                    try:
-                        preview_image = capture_window.capture(selected_hwnd)
-                        # Check if the selected process is Amarec
-                        if self._process_list[self.process_combo.currentIndex()][0].name() == "AmaRecTV.exe": 
-                            # Set the Top and Bottom bars to black to avoid detection
-                            # Set the top bar to black
-                            preview_image[0:68, 0:preview_image.shape[1]] = 0
+            # if self.use_obs_cb.isChecked():
+            try:
+                preview_image = self.shmem_capture.capture()
+            except Exception as e:
+                print(f"Capture failed: {e}")
+                pass
+            # else:
+            #     selected_hwnd = 0
+            #     try:
+            #         selected_hwnd = self._process_list[self.process_combo.currentIndex()][1]
+            #         # Check if the selected process is Amarec
+            #     except IndexError:
+            #         pass
+            #     if selected_hwnd:
+            #         try:
+            #             preview_image = capture_window.capture(selected_hwnd)
+            #             # Check if the selected process is Amarec
+            #             if self._process_list[self.process_combo.currentIndex()][0].name() == "AmaRecTV.exe": 
+            #                 # Set the Top and Bottom bars to black to avoid detection
+            #                 # Set the top bar to black
+            #                 preview_image[0:68, 0:preview_image.shape[1]] = 0
                             
                             
-                            # Seems to not be captiuirng the bottom bar anymore
+            #                 # Seems to not be captiuirng the bottom bar anymore
                             
-                            # actual_height = 1000
-                            # # From the bottom up, check for the first pixel that is not black in the 30th column
-                            # for row in range(preview_image.shape[0]-1, -1, -1):
-                            # # Check if pixel is not black (sum of RGB values > 0)
-                            #     pixel = preview_image[row][30]
-                            #     if sum(pixel) > 0:
-                            #         actual_height = row
-                            #         break
+            #                 # actual_height = 1000
+            #                 # # From the bottom up, check for the first pixel that is not black in the 30th column
+            #                 # for row in range(preview_image.shape[0]-1, -1, -1):
+            #                 # # Check if pixel is not black (sum of RGB values > 0)
+            #                 #     pixel = preview_image[row][30]
+            #                 #     if sum(pixel) > 0:
+            #                 #         actual_height = row
+            #                 #         break
                             
-                            # Set the bottom bar to black (actual_height - 23 is the height of the game window)
-                            # preview_image[actual_height-22:preview_image.shape[0], 0:preview_image.shape[1]] = 0
+            #                 # Set the bottom bar to black (actual_height - 23 is the height of the game window)
+            #                 # preview_image[actual_height-22:preview_image.shape[0], 0:preview_image.shape[1]] = 0
 
-                    except:
-                        pass
+            #         except:
+            #             pass
             if preview_image is None:
                 return
                 
