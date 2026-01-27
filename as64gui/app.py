@@ -368,6 +368,12 @@ class App(QtWidgets.QMainWindow):
 
     def mousePressEvent(self, event):
         if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            # Try to let the window manager handle the move (e.g. Wayland)
+            if self.windowHandle().startSystemMove():
+                event.accept()
+                return
+
+            # Fallback for systems where startSystemMove returns False
             self._drag = True
             self._drag_position = event.globalPosition().toPoint() - self.pos()
             event.accept()
@@ -383,8 +389,9 @@ class App(QtWidgets.QMainWindow):
         try:
             if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
                 try:
-                    self.move(event.globalPosition().toPoint() -
-                              self._drag_position)
+                    if self._drag:
+                        self.move(event.globalPosition().toPoint() -
+                                  self._drag_position)
                 except TypeError:
                     pass
                 event.accept()
