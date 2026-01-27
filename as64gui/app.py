@@ -11,6 +11,7 @@ from . import constants
 from .widgets import PictureButton, StateButton, StarCountDisplay, SplitListWidget
 from .dialogs import AboutDialog, CaptureEditor, SettingsDialog, RouteEditor, ResetGeneratorDialog, OutputDialog
 
+
 class App(QtWidgets.QMainWindow):
     start = QtCore.pyqtSignal()
     stop = QtCore.pyqtSignal()
@@ -40,12 +41,17 @@ class App(QtWidgets.QMainWindow):
         self.central_widget = QtWidgets.QWidget(self)
         self.star_count = StarCountDisplay(parent=self.central_widget)
         self.star_btn = PictureButton(QtGui.QPixmap(base_path(constants.STAR_PATH)),
-                                      pixmap_pressed=QtGui.QPixmap(base_path(constants.STAR_HOVER_PATH)),
-                                      pixmap_hover=QtGui.QPixmap(base_path(constants.STAR_HOVER_PATH)),
+                                      pixmap_pressed=QtGui.QPixmap(
+                                          base_path(constants.STAR_HOVER_PATH)),
+                                      pixmap_hover=QtGui.QPixmap(
+                                          base_path(constants.STAR_HOVER_PATH)),
                                       parent=self.central_widget)
-        self.start_btn_initial_x = 206
-        self.start_btn_initial_y = 180
-        self.start_btn = StateButton(self.start_pixmap, self.start_pixmap, parent=self.central_widget)
+        self.start_btn = StateButton(
+            self.start_pixmap, self.start_pixmap, parent=self.central_widget)
+        self.close_btn = PictureButton(QtGui.QPixmap(
+            base_path(constants.CLOSE_PATH)), parent=self.central_widget)
+        self.minimize_btn = PictureButton(QtGui.QPixmap(
+            base_path(constants.MINIMIZE_PATH)), parent=self.central_widget)
         self.split_list = SplitListWidget(self.central_widget)
 
         # Font
@@ -70,25 +76,26 @@ class App(QtWidgets.QMainWindow):
 
         self.initialize()
         self.show()
-        
+
         if config.get("general", "update_check"):
             self.update_check()
-        
+
         # Handle splash screen closure
         try:
-            import pyi_splash # type: ignore
+            import pyi_splash  # type: ignore
             pyi_splash.close()
         except (ImportError, ModuleNotFoundError):
             pass
-        
+
         QtCore.QTimer.singleShot(100, self.autostart)
-        
 
     def set_always_on_top(self, on_top):
         if on_top:
-            self.setWindowFlags(QtCore.Qt.WindowType.MSWindowsFixedSizeDialogHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint |
+                                QtCore.Qt.WindowType.WindowStaysOnTopHint)
         else:
-            self.setWindowFlags(QtCore.Qt.WindowType.MSWindowsFixedSizeDialogHint)
+            self.setWindowFlags(
+                QtCore.Qt.WindowType.FramelessWindowHint)
 
         self.show()
 
@@ -97,10 +104,12 @@ class App(QtWidgets.QMainWindow):
         self.setWindowTitle(self.title)
 
         if config.get("general", "on_top"):
-            self.setWindowFlags(QtCore.Qt.WindowType.MSWindowsFixedSizeDialogHint | QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint |
+                                QtCore.Qt.WindowType.WindowStaysOnTopHint)
         else:
-        #     self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
-            self.setWindowFlags(QtCore.Qt.WindowType.MSWindowsFixedSizeDialogHint)
+            #     self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
+            self.setWindowFlags(
+                QtCore.Qt.WindowType.FramelessWindowHint)
 
         self.setFixedSize(self.width, self.height)
 
@@ -113,7 +122,10 @@ class App(QtWidgets.QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         # Configure Other Widgets
-        self.star_btn.move(242, 35)
+        self.close_btn.move(340, 8)
+        self.minimize_btn.move(320, 8)
+
+        self.star_btn.move(250, 68)
 
         self.star_count.setFixedWidth(150)
         self.star_count.move(197, 115)
@@ -121,17 +133,17 @@ class App(QtWidgets.QMainWindow):
         self.star_count.star_count = "-"
         self.star_count.split_star = "-"
 
-        self.start_btn.move(self.start_btn_initial_x, self.start_btn_initial_y)
-        # self.start_btn.setFont(self.button_font)
-        # self.start_btn.setStyleSheet("font-weight: bold; color: black; font-size: 32px;")
-        self.start_btn.add_state("start", self.start_pixmap, "")
-        self.start_btn.add_state("stop", self.stop_pixmap, "")
-        self.start_btn.add_state("init", self.init_pixmap, "")
+        self.start_btn.move(206, 200)
+        self.start_btn.setFont(self.button_font)
+        self.start_btn.setTextColour(QtGui.QColor(225, 227, 230))
+        self.start_btn.add_state("start", self.start_pixmap, "Start")
+        self.start_btn.add_state("stop", self.stop_pixmap, "Stop")
+        self.start_btn.add_state("init", self.init_pixmap, "Initializing..")
         self.start_btn.set_state("start")
-        
-        # Add hover effects
-        self.start_btn.enterEvent = lambda e: self._on_start_btn_hover(True)
-        self.start_btn.leaveEvent = lambda e: self._on_start_btn_hover(False)
+
+        self.split_list.setFont(self.button_font)
+        self.split_list.setFixedSize(183, self.height)
+        self.split_list.move(0, 0)
 
         self.split_list.setFont(self.button_font)
         self.split_list.setFixedSize(183, self.height)
@@ -140,12 +152,15 @@ class App(QtWidgets.QMainWindow):
         self.open_route()
 
         # Connections
+        self.close_btn.clicked.connect(self.close)
+        self.minimize_btn.clicked.connect(self.showMinimized)
         self.start_btn.clicked.connect(self.start_clicked)
         self.star_btn.clicked.connect(self._reset)
-        self.dialogs["route_editor"].route_updated.connect(self._on_route_update)
+        self.dialogs["route_editor"].route_updated.connect(
+            self._on_route_update)
         self.dialogs["settings_dialog"].applied.connect(self.settings_updated)
         self.dialogs["capture_editor"].applied.connect(self._reset)
- 
+
     def settings_updated(self):
         self.set_always_on_top(config.get("general", "on_top"))
         self._reset()
@@ -164,21 +179,24 @@ class App(QtWidgets.QMainWindow):
         if config.get("general", "auto_start") and self.start_btn.get_state() == "start":
             self.autostarter_active = True
             self.start_btn.set_state("init")
-            
+
             # While autostarter is active, try every 2000ms to start the timer
             self.counter = 0
+
             def try_start():
                 if self.autostarter_active:
                     self.start.emit()
                     QtCore.QTimer.singleShot(2000, try_start)
             try_start()
             # Quit the autostarter after trying for 5 minutes
+
             def quit_autostarter():
                 if self.autostarter_active:
                     self.autostarter_active = False
                     self.start_btn.set_state("start")
                     self.stop.emit()
-                    self.display_error_message("Failed to auto start timer.", "AutoStart Error")
+                    self.display_error_message(
+                        "Failed to auto start timer.", "AutoStart Error")
             QtCore.QTimer.singleShot(300000, quit_autostarter)
 
     def start_clicked(self):
@@ -190,7 +208,7 @@ class App(QtWidgets.QMainWindow):
             self.star_count.split_star = self.route.splits[0].star_count
             self.stop.emit()
         elif self.start_btn.get_state() == "start":
-            
+
             self.start_btn.set_state("init")
             self.start.emit()
 
@@ -212,7 +230,7 @@ class App(QtWidgets.QMainWindow):
         if config.get("route", "path") == "":
             return
 
-        #try:
+        # try:
         route = route_loader.load(config.get("route", "path"))
         # except KeyError:
         #     self.display_error_message("Key Error", "Route Error")
@@ -272,18 +290,20 @@ class App(QtWidgets.QMainWindow):
         srl_action.setChecked(config.get("general", "srl_mode"))
         context_menu.addSeparator()
 
-        for category in sorted(self._routes, key=lambda text:[int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]):
+        for category in sorted(self._routes, key=lambda text: [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]):
             if len(self._routes[category]) == 1 or category == "":
                 for route in self._routes[category]:
                     route_menu.addAction(route[0])
-                    route_actions[route[0]] = partial(self._save_open_route, route[1])
+                    route_actions[route[0]] = partial(
+                        self._save_open_route, route[1])
             else:
                 category_menus[category] = QtWidgets.QMenu(str(category))
                 route_menu.addMenu(category_menus[category])
 
                 for route in self._routes[category]:
                     category_menus[category].addAction(route[0])
-                    route_actions[route[0]] = partial(self._save_open_route, route[1])
+                    route_actions[route[0]] = partial(
+                        self._save_open_route, route[1])
 
         route_menu.addSeparator()
         file_action = route_menu.addAction("From File")
@@ -363,7 +383,8 @@ class App(QtWidgets.QMainWindow):
         try:
             if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
                 try:
-                    self.move(event.globalPosition().toPoint() - self._drag_position)
+                    self.move(event.globalPosition().toPoint() -
+                              self._drag_position)
                 except TypeError:
                     pass
                 event.accept()
@@ -388,20 +409,24 @@ class App(QtWidgets.QMainWindow):
     def display_update_message(self, version):
         msg = QtWidgets.QMessageBox(self)
         msg.setWindowTitle("Update Available")
-        msg.setText(f"A new version of AutoSplit 64+ is available!\n\nCurrent Version: {constants.VERSION}\nLatest Version: {version}")
-        
+        msg.setText(
+            f"A new version of AutoSplit 64+ is available!\n\nCurrent Version: {constants.VERSION}\nLatest Version: {version}")
+
         # Create custom icon label
         icon_label = QtWidgets.QLabel()
         pixmap = QtGui.QPixmap(base_path(constants.STAR_HOVER_PATH))
         icon_label.setPixmap(pixmap)
         layout = msg.layout()
-        layout.addWidget(icon_label, 0, 0, 1, 1, QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_label, 0, 0, 1, 1,
+                         QtCore.Qt.AlignmentFlag.AlignCenter)
         msg.addButton("Ignore", QtWidgets.QMessageBox.ButtonRole.RejectRole)
-        download_btn = msg.addButton("Download", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
-        
+        download_btn = msg.addButton(
+            "Download", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+
         def on_button_clicked(button):
             if button == download_btn:
-                QtGui.QDesktopServices.openUrl(QtCore.QUrl(f"https://github.com/{constants.GITHUB_REPO}/releases/latest"))
+                QtGui.QDesktopServices.openUrl(QtCore.QUrl(
+                    f"https://github.com/{constants.GITHUB_REPO}/releases/latest"))
 
         msg.buttonClicked.connect(on_button_clicked)
         msg.exec()
@@ -413,7 +438,8 @@ class App(QtWidgets.QMainWindow):
     def update_check(self):
 
         try:
-            response = requests.get(f"https://api.github.com/repos/{constants.GITHUB_REPO}/releases/latest")
+            response = requests.get(
+                f"https://api.github.com/repos/{constants.GITHUB_REPO}/releases/latest")
             response.raise_for_status()
             data = json.loads(response.text)
             latest_version = data["tag_name"]
@@ -437,10 +463,12 @@ class App(QtWidgets.QMainWindow):
                     category = route.category
 
                     try:
-                        self._routes[category].append([route.title, "routes/" + file])
+                        self._routes[category].append(
+                            [route.title, "routes/" + file])
                     except KeyError:
                         self._routes[category] = []
-                        self._routes[category].append([route.title, "routes/" + file])
+                        self._routes[category].append(
+                            [route.title, "routes/" + file])
 
     def _on_route_update(self):
         self._load_route_dir()
@@ -481,23 +509,7 @@ class App(QtWidgets.QMainWindow):
 
         self.stop.emit()
         super().close()
-        
+
     def closeEvent(self, event):
         self.close()
         event.accept()
-
-    def _on_start_btn_hover(self, hovering):
-        if hovering:
-            scale = 1.1
-        else:
-            scale = 1.0
-        
-        # Resize button
-        new_width = int(self.start_pixmap.width() * scale)
-        new_height = int(self.start_pixmap.height() * scale)
-        self.start_btn.setFixedSize(new_width, new_height)
-        
-        # Move button relative to its initial position
-        new_x = self.start_btn_initial_x - (new_width - self.start_pixmap.width()) // 2
-        new_y = self.start_btn_initial_y - (new_height - self.start_pixmap.height()) // 2
-        self.start_btn.move(new_x, new_y)

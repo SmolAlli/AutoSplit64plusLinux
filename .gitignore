@@ -145,3 +145,4 @@ dmypy.json
 *.iml
 out
 gen
+build.sh
