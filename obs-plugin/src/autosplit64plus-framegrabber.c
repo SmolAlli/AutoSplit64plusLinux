@@ -289,6 +289,7 @@ static bool copy_to_shared_memory(struct filter_data *filter, uint32_t width, ui
 
 	return false;
 }
+
 /**
  * Main rendering function that:
  * 1. Captures the video frame
