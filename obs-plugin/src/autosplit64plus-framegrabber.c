@@ -387,7 +387,8 @@ static void filter_render(void *data, gs_effect_t *effect)
 
 	gs_texture_t *tex = gs_texrender_get_texture(filter->render);
 	if (tex) {
-		gs_draw_sprite(tex, 0, width, height);
+		// gs_draw_sprite(tex, 0, width, height);
+		obs_source_skip_video_filter(filter->context);
 	} else {
 		blog(LOG_ERROR, "Failed to get texture from render target");
 	}

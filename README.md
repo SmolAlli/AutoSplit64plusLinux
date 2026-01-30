@@ -24,5 +24,3 @@ May also need to install `libsimde-dev`
 
 ## I do not expect this to work flawlessly (or at all for others)
 I do not have experience doing this sort of work so its mostly held together with glue and tape (and lots of ai)
-### Known issues:
-- OBS plugin stops video device from being displayed
