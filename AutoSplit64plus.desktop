@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=AutoSplit64plus
+Comment=Automated splitter for Super Mario 64
+Exec=AutoSplit64
+Icon=autosplit64plus
+Categories=Utility;
+Terminal=false

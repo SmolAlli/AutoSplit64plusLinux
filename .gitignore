@@ -146,3 +146,10 @@ dmypy.json
 out
 gen
 build.sh
+
+# AppImage Build Artifacts
+*.AppImage
+AppDir/
+build_artifacts/
+linuxdeploy-*.AppImage
+appimagetool-*.AppImage
