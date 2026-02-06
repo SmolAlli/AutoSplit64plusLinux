@@ -59,7 +59,7 @@ cp "$REPO_ROOT/defaults.ini" "$APP_DIR/usr/src/"
 # Copy icon and desktop file
 cp "$REPO_ROOT/AutoSplit64plus.desktop" "$APP_DIR/"
 # Resize icon to 512x512 for AppImage compliance
-convert "$REPO_ROOT/resources/icons/Original_by_Kitsovereign.png" -resize 512x512! "$APP_DIR/autosplit64plus.png"
+convert "$REPO_ROOT/resources/gui/icons/icon.png" -resize 512x512! "$APP_DIR/autosplit64plus.png"
 
 # ==========================================
 # BUNDLING PYTHON & DEPENDENCIES
