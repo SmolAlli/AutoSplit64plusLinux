@@ -153,3 +153,6 @@ AppDir/
 build_artifacts/
 linuxdeploy-*.AppImage
 appimagetool-*.AppImage
+
+generated_reset_*.jpg
+*.so

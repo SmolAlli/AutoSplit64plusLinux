@@ -10,7 +10,7 @@ BUILD_ROOT="/tmp/as64_build_$(date +%s)"
 APP_DIR="$BUILD_ROOT/AppDir"
 BUILD_DIR="$BUILD_ROOT/build_artifacts"
 # Path to host Python 3.11 installation to bundle
-PYTHON_HOST_PATH="/home/poke/.pyenv/versions/3.11.9"
+PYTHON_HOST_PATH="/home/$USER/.pyenv/versions/3.11.9"
 
 echo "Build started at $(date)"
 echo "Build root: $BUILD_ROOT"

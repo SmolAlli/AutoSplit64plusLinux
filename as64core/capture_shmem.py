@@ -15,6 +15,7 @@ class SharedMemoryCapture(object):
     def __init__(self):
         self.shmem_handle = None
         self.shmem = None
+        self.shmem_fd = None
         self.width = 0
         self.height = 0
         self.linesize = 0
@@ -38,13 +39,13 @@ class SharedMemoryCapture(object):
             # Linux implementation
             shm_path = f"/dev/shm/{SHMEM_NAME}"
             if not os.path.exists(shm_path):
-                 debug_info = f"Path checked: {shm_path}\n"
-                 if os.path.exists("/dev/shm"):
-                     debug_info += f"Contents of /dev/shm: {os.listdir('/dev/shm')}"
-                 else:
-                     debug_info += "/dev/shm directory does not exist!"
-                 
-                 raise Exception(f"Could not find OBS Grabber Plugin!\n\n{debug_info}\n\nPlease make sure the plugin is enabled and OBS is running.")
+                debug_info = f"Path checked: {shm_path}\n"
+                if os.path.exists("/dev/shm"):
+                    debug_info += f"Contents of /dev/shm: {os.listdir('/dev/shm')}"
+                else:
+                    debug_info += "/dev/shm directory does not exist!"
+                
+                raise Exception(f"Could not find OBS Grabber Plugin!\n\n{debug_info}\n\nPlease make sure the plugin is enabled and OBS is running.")
 
             # We need to open the file to get a file descriptor
             self.shmem_fd = open(shm_path, "r+b")
@@ -91,23 +92,24 @@ class SharedMemoryCapture(object):
             header = np.frombuffer(shmem_header.read(16), dtype=np.uint32)
             shmem_header.close()
         else:
-             if not hasattr(self, 'shmem_fd') or not self.shmem_fd:
-                 # Try to open if we have the file
-                 if os.path.exists(f"/dev/shm/{SHMEM_NAME}"):
-                     self.open_shmem()
-                 else:
-                     return # Can't update dimensions if not open/exists
+            if not hasattr(self, 'shmem_fd') or not self.shmem_fd:
+                print(f"hasattr: {hasattr(self, 'shmem_fd')} shmem_fd: {self.shmem_fd}")
+                # Try to open if we have the file
+                if os.path.exists(f"/dev/shm/{SHMEM_NAME}"):
+                    self.open_shmem()
+                else:
+                    return # Can't update dimensions if not open/exists
              
-             # Map header using the file descriptor
-             # We use the existing FD. 
-             try:
-                 shmem_header = mmap.mmap(self.shmem_fd.fileno(), 16, access=mmap.ACCESS_READ)
-                 shmem_header.seek(0)
-                 header = np.frombuffer(shmem_header.read(16), dtype=np.uint32)
-                 shmem_header.close()
-             except Exception as e:
-                 print(f"Error reading shmem header: {e}")
-                 return
+            # Map header using the file descriptor
+            # We use the existing FD. 
+            try:
+                shmem_header = mmap.mmap(self.shmem_fd.fileno(), 16, access=mmap.ACCESS_READ)
+                shmem_header.seek(0)
+                header = np.frombuffer(shmem_header.read(16), dtype=np.uint32)
+                shmem_header.close()
+            except Exception as e:
+                print(f"Error reading shmem header: {e}")
+                return
 
         new_width = int(header[0])
         new_height = int(header[1])

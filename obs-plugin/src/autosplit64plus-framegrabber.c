@@ -66,7 +66,7 @@ static void *filter_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct filter_data *filter = bzalloc(sizeof(struct filter_data));
 	if (!filter) {
-		blog(LOG_ERROR, "Failed to allocate filter data");
+		blog(LOG_ERROR, "%s Failed to allocate filter data", PREFIX);
 		return NULL;
 	}
 
@@ -74,14 +74,14 @@ static void *filter_create(obs_data_t *settings, obs_source_t *source)
 	filter->is_valid = !filter_instance_exists;
 
 	if (!filter->is_valid) {
-		blog(LOG_WARNING, "AS64+ Frame grabber: Only one instance allowed");
+		blog(LOG_WARNING, "%s AS64+ Frame grabber: Only one instance allowed", PREFIX);
 		return filter; // Return filter anyway so properties can show error
 	}
 
 	filter_instance_exists = true;
 	filter->render = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
 	if (!filter->render) {
-		blog(LOG_ERROR, "Failed to create texture renderer");
+		blog(LOG_ERROR, "%s Failed to create texture renderer", PREFIX);
 		bfree(filter);
 		return NULL;
 	}
@@ -98,15 +98,15 @@ static void *filter_create(obs_data_t *settings, obs_source_t *source)
  * @param data Pointer to the filter data
  * @return Pointer to the created properties
  */
-// static bool github_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
-// {
-// #ifdef _WIN32
-// 	system("start " GITHUB_URL);
-// #else
-// 	system("xdg-open " GITHUB_URL);
-// #endif
-// 	return false;
-// }
+static bool github_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
+{
+#ifdef _WIN32
+	system("start " GITHUB_URL);
+#else
+	system("xdg-open " GITHUB_URL);
+#endif
+	return false;
+}
 
 // static bool discord_button_clicked(obs_properties_t *props, obs_property_t *property, void *data)
 // {
@@ -138,7 +138,7 @@ static obs_properties_t *filter_properties(void *data)
 				OBS_TEXT_INFO);
 
 	// Social links - directly in props instead of a group for horizontal layout
-	// obs_properties_add_button(props, "github_link", "📂 GitHub Repository", github_button_clicked);
+	obs_properties_add_button(props, "github_link", "📂 GitHub Repository", github_button_clicked);
 	// obs_properties_add_button(props, "discord_link", "💬 Join Discord", discord_button_clicked);
 
 	// Version and author info - directly use the constants
@@ -170,15 +170,15 @@ static bool open_shmem(struct filter_data *filter, uint32_t width, uint32_t heig
 		filter->pBuf = MapViewOfFile(filter->shmem, FILE_MAP_ALL_ACCESS, 0, 0, 16 + width * height * 4);
 		if (filter->pBuf) {
 			filter->shmem_valid = true;
-			blog(LOG_INFO, "Opened shared memory connection");
+			blog(LOG_INFO, "%s Opened shared memory connection", PREFIX);
 			return true;
 		} else {
-			blog(LOG_ERROR, "Failed to map shared memory: %lu", GetLastError());
+			blog(LOG_ERROR, "%s Failed to map shared memory: %lu", PREFIX, GetLastError());
 			CloseHandle(filter->shmem);
 			filter->shmem = NULL;
 		}
 	} else {
-		blog(LOG_ERROR, "Failed to create shared memory: %lu", GetLastError());
+		blog(LOG_ERROR, "%s Failed to create shared memory: %lu", PREFIX, GetLastError());
 	}
 	return false;
 #else
@@ -189,12 +189,12 @@ static bool open_shmem(struct filter_data *filter, uint32_t width, uint32_t heig
 
 	filter->shmem_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
 	if (filter->shmem_fd == -1) {
-		blog(LOG_ERROR, "Failed to create shared memory: %s", strerror(errno));
+		blog(LOG_ERROR, "%s Failed to create shared memory: %s", PREFIX, strerror(errno));
 		return false;
 	}
 
 	if (ftruncate(filter->shmem_fd, size) == -1) {
-		blog(LOG_ERROR, "Failed to resize shared memory: %s", strerror(errno));
+		blog(LOG_ERROR, "%s Failed to resize shared memory: %s", PREFIX, strerror(errno));
 		close(filter->shmem_fd);
 		filter->shmem_fd = -1;
 		return false;
@@ -202,7 +202,7 @@ static bool open_shmem(struct filter_data *filter, uint32_t width, uint32_t heig
 
 	filter->pBuf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, filter->shmem_fd, 0);
 	if (filter->pBuf == MAP_FAILED) {
-		blog(LOG_ERROR, "Failed to map shared memory: %s", strerror(errno));
+		blog(LOG_ERROR, "%s Failed to map shared memory: %s", PREFIX, strerror(errno));
 		close(filter->shmem_fd);
 		filter->shmem_fd = -1;
 		filter->pBuf = NULL;
@@ -210,7 +210,7 @@ static bool open_shmem(struct filter_data *filter, uint32_t width, uint32_t heig
 	}
 
 	filter->shmem_valid = true;
-	blog(LOG_INFO, "Opened shared memory connection");
+	blog(LOG_INFO, "%s Opened shared memory connection", PREFIX);
 	return true;
 #endif
 }
@@ -238,9 +238,9 @@ static bool close_shmem(struct filter_data *filter)
 #ifdef _WIN32
 	if (filter->shmem) {
 		if (CloseHandle(filter->shmem)) {
-			blog(LOG_INFO, "Closed the shared memory");
+			blog(LOG_INFO, "%s Closed the shared memory", PREFIX);
 		} else {
-			blog(LOG_ERROR, "Failed to close the shared memory: %lu", GetLastError());
+			blog(LOG_ERROR, "%s Failed to close the shared memory: %lu", PREFIX, GetLastError());
 		}
 		filter->shmem = NULL;
 	}
@@ -251,7 +251,7 @@ static bool close_shmem(struct filter_data *filter)
 		// We do not unlink here to allow ensuring other processes can still see it if needed,
 		// but typically we might want to unlink?
 		// For now, mirroring Windows behavior of just closing handle.
-		blog(LOG_INFO, "Closed the shared memory");
+		blog(LOG_INFO, "%s Closed the shared memory", PREFIX);
 	}
 #endif
 	filter->shmem_valid = false;
@@ -283,7 +283,7 @@ static bool copy_to_shared_memory(struct filter_data *filter, uint32_t width, ui
 		memcpy((uint8_t *)filter->pBuf + 16, filter->image_data, width * height * 4);
 		return true;
 	} else {
-		blog(LOG_ERROR, "Shared memory view is not mapped");
+		blog(LOG_ERROR, "%s Shared memory view is not mapped", PREFIX);
 		filter->shmem_valid = false;
 	}
 
@@ -331,7 +331,7 @@ static void filter_render(void *data, gs_effect_t *effect)
 			gs_stagesurface_destroy(filter->staging);
 		filter->staging = gs_stagesurface_create(width, height, GS_BGRA);
 		if (!filter->staging) {
-			blog(LOG_ERROR, "Failed to allocate staging surface for %dx%d", width, height);
+			blog(LOG_ERROR, "%s Failed to allocate staging surface for %dx%d", PREFIX, width, height);
 			obs_source_skip_video_filter(filter->context);
 			return;
 		}
@@ -341,7 +341,7 @@ static void filter_render(void *data, gs_effect_t *effect)
 			filter->image_data = brealloc(filter->image_data, width * height * 4);
 		}
 		if (!filter->image_data) {
-			blog(LOG_ERROR, "Failed to allocate image data for %dx%d", width, height);
+			blog(LOG_ERROR, "%s Failed to allocate image data for %dx%d", PREFIX, width, height);
 			obs_source_skip_video_filter(filter->context);
 			return;
 		}
@@ -377,12 +377,12 @@ static void filter_render(void *data, gs_effect_t *effect)
 			}
 			gs_stagesurface_unmap(filter->staging);
 		} else {
-			// blog(LOG_WARNING, "Failed to map staging surface");
+			// blog(LOG_WARNING, "%s Failed to map staging surface", PREFIX);
 		}
 
 		copy_to_shared_memory(filter, width, height);
 	} else {
-		blog(LOG_ERROR, "Failed to begin texture render");
+		blog(LOG_ERROR, "%s Failed to begin texture render", PREFIX);
 	}
 
 	gs_texture_t *tex = gs_texrender_get_texture(filter->render);
@@ -390,7 +390,7 @@ static void filter_render(void *data, gs_effect_t *effect)
 		// gs_draw_sprite(tex, 0, width, height);
 		obs_source_skip_video_filter(filter->context);
 	} else {
-		blog(LOG_ERROR, "Failed to get texture from render target");
+		blog(LOG_ERROR, "%s Failed to get texture from render target", PREFIX);
 	}
 }
 
