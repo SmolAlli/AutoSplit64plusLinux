@@ -6,9 +6,31 @@ try:
 except ImportError:
     win32file = None
     win32pipe = None
+    CONNECTIONS = set()
+
 import time
+import websockets
+import asyncio
+import threading
 
 from . import config
+
+
+async def register(websocket):
+	CONNECTIONS.add(websocket)
+	try:
+		await websocket.wait_closed()
+	finally:
+		CONNECTIONS.remove(websocket)
+
+def websocket_func():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    ws_server = websockets.serve(register, 'localhost', 5678)
+
+    loop.run_until_complete(ws_server)
+    loop.run_forever()
+    loop.close()
 
 # Connect to LiveSplit and return socket
 def connect() -> object:
@@ -39,7 +61,13 @@ def connect() -> object:
             ls_socket.connect((config.get("connection", "ls_host"), config.get("connection", "ls_port")))
             return ls_socket
         except:
-            return False
+            try:
+                # Initialise websocket
+                server = threading.Thread(target=websocket_func, daemon=True)
+                server.start()
+            finally:
+                return "websocket"
+            
     else:
         return False
 
@@ -48,18 +76,27 @@ def disconnect(ls_socket) -> None:
     # Check if connection even exists
     if ls_socket is False:
         return
-    ls_socket.close()
+    try:
+        ls_socket.close()
+    except:
+        # for websocket
+        return
 
 
 def check_connection(ls_socket) -> bool:
-    # Check if connection has been established
-    if (ls_socket == False):
+    try:
+        if ls_socket == "websocket":
+            return True
+        # Check if connection has been established
+        if (ls_socket == False):
+            return False
+        # Check if communication is possible and response is received
+        if split_index(ls_socket) is False:
+            return False
+        else:
+            return True
+    except:
         return False
-    # Check if communication is possible and response is received
-    if split_index(ls_socket) is False:
-        return False
-    else:
-        return True
 
 
 def send(ls_socket, command) -> None:
@@ -70,6 +107,8 @@ def send(ls_socket, command) -> None:
         ls_socket.send(command.encode('utf-8'))
     # If it is a pipe:
     else:
+        if ls_socket == "websocket":
+            websockets.broadcast(CONNECTIONS, '{"command": "' + command + '"}')
         if win32file is None:
             return
 
@@ -80,21 +119,24 @@ def send(ls_socket, command) -> None:
             raise Exception("LiveSplit connection lost")
 
 def split(ls_socket) -> None:
-    send(ls_socket, "startorsplit\r\n")
+    send(ls_socket, "splitOrStart" if ls_socket == "websocket" else "startorsplit\r\n")
+    # send(ls_socket, "startorsplit\r\n")
 
 
 def reset(ls_socket) -> None:
-    send(ls_socket, "reset\r\n")
+    send(ls_socket, "reset" if ls_socket == "websocket" else "reset\r\n")
 
 def restart(ls_socket) -> None:
-    send(ls_socket, "reset\r\nstarttimer\r\n")
+    send(ls_socket, "reset" if ls_socket == "websocket" else "reset\r\nstarttimer\r\n")
+    if ls_socket == "websocket":
+        send(ls_socket, "splitOrStart")
 
 def skip(ls_socket) -> None:
-    send(ls_socket, "skipsplit\r\n")
+    send(ls_socket, "skipSplit" if ls_socket == "websocket" else "skipsplit\r\n")
 
 
 def undo(ls_socket) -> None:
-    send(ls_socket, "unsplit\r\n")
+    send(ls_socket, "undoSplit" if ls_socket == "websocket" else "unsplit\r\n")
 
 
 def split_index(ls_socket):
