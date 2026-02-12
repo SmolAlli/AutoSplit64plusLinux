@@ -32,3 +32,6 @@ This will generate `AutoSplit64plus-x86_64.AppImage` in the root directory.
 ### Using the AppImage
 1. Make it executable: `chmod +x AutoSplit64plus-x86_64.AppImage`
 2. Run it: `./AutoSplit64plus-x86_64.AppImage`
+
+## Known issues:
+Having a filter on the same source as the OBS plugin that has errors (i.e. doesn't have the relevant plugin installed) will cause shared memory to not initialize properly on the plugin side.

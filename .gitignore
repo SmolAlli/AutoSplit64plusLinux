@@ -145,14 +145,12 @@ dmypy.json
 *.iml
 out
 gen
-build.sh
+obs-plugin/build.sh
 
 # AppImage Build Artifacts
 *.AppImage
 AppDir/
 build_artifacts/
-linuxdeploy-*.AppImage
-appimagetool-*.AppImage
-
-generated_reset_*.jpg
 *.so
+templates/generated_reset_*.jpg
+*.tar.gz
