@@ -9,7 +9,6 @@ pyinstaller ^
 --clean ^
 --noupx ^
 --contents-directory "libraries" ^
---onefile
 AutoSplit64.py
 
 xcopy /E /I /Y logic dist\AutoSplit64plus\logic
